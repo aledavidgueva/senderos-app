@@ -1,0 +1,166 @@
+<!-- Modal -->
+<div
+  #modal
+  class="modal fade"
+  tabindex="-1"
+  aria-labelledby="staticBackdropLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="staticBackdropLabel">
+          Nueva estación
+        </h1>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form *ngIf="formGroup" [formGroup]="formGroup">
+          <!-- Nombre -->
+          <div class="mb-3">
+            <label class="form-label">Nombre de la estación</label>
+            <input
+              #firstInput
+              type="text"
+              class="form-control"
+              placeholder="Ingrese un nombre para la estación"
+              [formControl]="formGroup.controls.name"
+              [ngClass]="{
+                    'is-invalid':
+                      formGroup.controls.name.invalid &&
+                      (formGroup.controls.name.dirty ||
+                        formGroup.controls.name.touched)
+                  }"
+            />
+
+            <div
+              *ngIf="
+                    formGroup.controls.name.invalid &&
+                    (formGroup.controls.name.dirty ||
+                      formGroup.controls.name.touched)
+                  "
+              class="invalid-feedback"
+            >
+              El nombre es requerido.
+            </div>
+          </div>
+          <!-- Latitud -->
+          <div class="mb-3">
+            <label class="form-label">Latitud</label>
+            <input
+              type="number"
+              class="form-control"
+              placeholder="Ingrese un número"
+              [formControl]="formGroup.controls.lat"
+              [attr.min]="minLat"
+              [attr.max]="maxLat"
+              [ngClass]="{
+                    'is-invalid':
+                      formGroup.controls.lat.invalid &&
+                      (formGroup.controls.lat.dirty ||
+                        formGroup.controls.lat.touched)
+                  }"
+            />
+            <div
+              *ngIf="
+                    formGroup.controls.lat.invalid &&
+                    (formGroup.controls.lat.dirty ||
+                      formGroup.controls.lat.touched)
+                  "
+              class="invalid-feedback"
+            >
+              El valor es inválido. Ingrese un número entre {{ minLat }} y {{
+              maxLat }}
+            </div>
+          </div>
+          <!-- Longitud -->
+          <div class="mb-3">
+            <label class="form-label">Longitud</label>
+            <input
+              type="number"
+              class="form-control"
+              placeholder="Ingrese un número"
+              [formControl]="formGroup.controls.lng"
+              [attr.min]="minLng"
+              [attr.max]="maxLng"
+              [ngClass]="{
+                    'is-invalid':
+                      formGroup.controls.lng.invalid &&
+                      (formGroup.controls.lng.dirty ||
+                        formGroup.controls.lng.touched)
+                  }"
+            />
+            <div
+              *ngIf="
+                    formGroup.controls.lng.invalid &&
+                    (formGroup.controls.lng.dirty ||
+                      formGroup.controls.lng.touched)
+                  "
+              class="invalid-feedback"
+            >
+              El valor es inválido. Ingrese un número entre {{ minLng }} y {{
+              maxLng }}
+            </div>
+          </div>
+
+          <hr *ngIf="locations.length > 0" />
+
+          <!-- Adyacencia -->
+          <div
+            *ngFor="
+                  let control of formGroup.controls.adjacency.controls;
+                  let i = index
+                "
+          >
+            <div class="mb-3">
+              <label class="form-label"
+                >Estación #{{ i + 1 }}: {{ locations[i] }} - Impacto
+                ambiental</label
+              >
+              <input
+                type="number"
+                class="form-control"
+                placeholder="Ingrese el impacto ambiental"
+                [formControl]="control"
+                [attr.min]="minPathWeight"
+                [attr.max]="maxPathWeight"
+                [ngClass]="{
+                      'is-invalid':
+                        control.invalid && (control.dirty || control.touched)
+                    }"
+              />
+
+              <div
+                *ngIf="
+                      control.invalid && (control.dirty || control.touched)
+                    "
+                class="invalid-feedback"
+              >
+                El valor es inválido. Deje vacio si no hay conexión con esta
+                estación o ingrese un número entre {{ minPathWeight }} y {{
+                maxPathWeight }}
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary ms-5"
+          (click)="validateAndSave()"
+        >
+          Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

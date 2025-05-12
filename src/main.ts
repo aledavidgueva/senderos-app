@@ -1,6 +1,7 @@
-import { bootstrapApplication } from '@angular/platform-browser';
-import { appConfig } from './app/app.config';
-import { AppComponent } from './app/app.component';
+import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+import { PathPlannerModule } from './PathPlanner/PathPlannerModule';
 
-bootstrapApplication(AppComponent, appConfig)
+
+platformBrowserDynamic()
+  .bootstrapModule(PathPlannerModule)
   .catch((err) => console.error(err));
