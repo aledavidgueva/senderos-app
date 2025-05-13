@@ -28,6 +28,15 @@ import { GraphScreen } from '../Models/PathPlannerModel';
       >
         Nueva estación
       </button>
+
+      <button
+        class="btn btn-primary ms-3"
+        (click)="generateRandom()"
+        [disabled]="loading || screen !== 'original'"
+      >
+        Generar 10 estaciones
+      </button>
+
       <button
         class="btn btn-secondary ms-3"
         (click)="exportData()"
@@ -78,6 +87,19 @@ import { GraphScreen } from '../Models/PathPlannerModel';
       "
     ></app-map>
 
+    <div class="mt-3">Total de estaciones: {{ locationsLength }}</div>
+
+    <div class="mt-3">
+      <p>Log de cálculos de AGM:</p>
+      <ul>
+        @for (log of logs; track log) {
+          <li>{{ log }}</li>
+        } @empty {
+          <li>Sin cálculos aún.</li>
+        }
+      </ul>
+    </div>
+
     <app-modal-new-location #modalNewLocation></app-modal-new-location>
 
     <div *ngIf="loading" class="loader"></div> `,
@@ -111,10 +133,12 @@ export class PathPlannerView implements IObserver, OnInit, OnDestroy {
 
   public locationsLength: number = 0;
 
+  public logs: Array<string> = new Array();
+
   constructor(
     @Inject(PATH_PLANNER_CONTROLLER)
     private readonly pathPlanner: PathPlannerController,
-    private readonly cdRef: ChangeDetectorRef
+    private readonly cdRef: ChangeDetectorRef,
   ) {}
 
   public ngOnInit(): void {
@@ -128,7 +152,7 @@ export class PathPlannerView implements IObserver, OnInit, OnDestroy {
   public importDataConfirm(el: HTMLElement): void {
     if (
       confirm(
-        'Esto eliminará lo cargado hasta el momento en favor de lo importado. ¿Seguro/a de continuar?'
+        'Esto eliminará lo cargado hasta el momento en favor de lo importado. ¿Seguro/a de continuar?',
       )
     )
       el.click();
@@ -175,13 +199,21 @@ export class PathPlannerView implements IObserver, OnInit, OnDestroy {
 
   public calcPrim(): void {
     this.setLoading(true);
-    this.pathPlanner.resolveWithPrim();
+    try {
+      this.pathPlanner.resolveWithPrim();
+    } catch (err) {
+      alert('No es posible calcular AGM porque el grafo no es conexo.');
+    }
     this.setLoading(false);
   }
 
   public calcKruskal(): void {
     this.setLoading(true);
-    this.pathPlanner.resolveWithKruskal();
+    try {
+      this.pathPlanner.resolveWithKruskal();
+    } catch (err) {
+      alert('No es posible calcular AGM porque el grafo no es conexo.');
+    }
     this.setLoading(false);
   }
 
@@ -190,28 +222,40 @@ export class PathPlannerView implements IObserver, OnInit, OnDestroy {
     this.cdRef.markForCheck();
   }
 
+  public async generateRandom(): Promise<void> {
+    try {
+      this.setLoading(true);
+      await this.pathPlanner.generateRandom(10);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.setLoading(false);
+    }
+  }
+
+  public updateLog(): void {
+    if (this.screen === 'prim' || this.screen === 'kruskal') {
+      const result: Result | null =
+        this.screen === 'prim'
+          ? this.pathPlanner.getPrimResult()
+          : this.pathPlanner.getKruskalResult();
+      if (result) {
+        const log: string = `Para ${
+          this.locationsLength
+        } estaciones, el algorítmo de ${
+          this.screen.charAt(0).toLocaleUpperCase() + this.screen.substring(1)
+        } demoró ${result.getTime()}ms. El impacto ambiental es de ${result.getWeight()}.`;
+        alert(log);
+        this.logs.push(log);
+      }
+    }
+    this.cdRef.markForCheck();
+  }
+
   public notify(): void {
     this.locationsLength = this.pathPlanner.getLocations().length;
     this.screen = this.pathPlanner.getScreen();
-
-    if (this.screen === 'prim') {
-      const result: Result | null = this.pathPlanner.getPrimResult();
-      if (result) {
-        alert(
-          `El algorítmo de Prim demoró ${result.getTime()}ms. El impacto ambiental es de ${result.getWeight()}.`
-        );
-      }
-    }
-
-    if (this.screen === 'kruskal') {
-      const result: Result | null = this.pathPlanner.getKruskalResult();
-      if (result) {
-        alert(
-          `El algorítmo de Kruskal demoró ${result.getTime()}ms. El impacto ambiental es de ${result.getWeight()}.`
-        );
-      }
-    }
-
+    this.updateLog();
     this.cdRef.markForCheck();
     this.debug('Notified.');
   }

@@ -44,6 +44,11 @@ function KruskalAlgorithm(matrix: number[][]): number[][] {
     }
   }
 
+  // Verificar si se agregaron suficientes aristas
+  if (edgeCount !== n - 1) {
+    throw new Error('El grafo no es conexo. No se puede crear un AGM.');
+  }
+
   return mst;
 }
 

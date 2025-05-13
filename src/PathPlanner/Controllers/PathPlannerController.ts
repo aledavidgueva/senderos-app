@@ -47,7 +47,7 @@ export class PathPlannerController implements IObservable {
 
   public locationExists(lat: number, lng: number): boolean {
     return this.pathPlannerModel.locationExists(
-      new Location('Test', new MapLib.LatLng(lat, lng))
+      new Location('Test', new MapLib.LatLng(lat, lng)),
     );
   }
 
@@ -61,11 +61,11 @@ export class PathPlannerController implements IObservable {
     name: string,
     lat: number,
     lng: number,
-    adjacency: Array<number | null>
+    adjacency: Array<number | null>,
   ): void {
     this.pathPlannerModel.addLocation(
       new Location(name, new MapLib.LatLng(lat, lng)),
-      adjacency
+      adjacency,
     );
   }
 
@@ -91,6 +91,47 @@ export class PathPlannerController implements IObservable {
 
   public exportData(): string {
     return this.pathPlannerModel.export();
+  }
+
+  public async generateRandom(count: number): Promise<void> {
+    // rango de coordenadas aprox. dentro de argentina
+    const argLatMin = -37.53;
+    const argLatMax = -27.94;
+    const argLngMin = -68.74;
+    const argLngMax = -58.48;
+
+    for (let i = 0; i < count; i++) {
+      const rndLat: number = Number(
+        (Math.random() * (argLatMax - argLatMin) + argLatMin).toFixed(8),
+      );
+      const rndLng: number = Number(
+        (Math.random() * (argLngMax - argLngMin) + argLngMin).toFixed(8),
+      );
+
+      const rndAdjacency: Array<number | null> = new Array();
+      const locations: number = this.getLocations().length;
+      for (let j = 0; j < locations; j++) {
+        rndAdjacency.push(
+          Math.random() > 0.7
+            ? Math.floor(Math.random() * Config.maxPathWeight) + 1
+            : null,
+        );
+      }
+      // Aseguro que al menos esté conectado a otro
+      if (locations > 0) {
+        rndAdjacency[Math.floor(Math.random() * locations)] =
+          Math.floor(Math.random() * Config.maxPathWeight) + 1;
+      }
+
+      this.addLocation(`Random ${i}`, rndLat, rndLng, rndAdjacency);
+      await this.sleep(300);
+    }
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve(), ms);
+    });
   }
 
   public addObserver(observer: IObserver): void {

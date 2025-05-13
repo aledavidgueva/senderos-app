@@ -9,7 +9,7 @@ import KruskalAlgorithm from '../Utils/KruskalAlg';
 import { Result } from '../Utils/Result';
 
 export const PATH_PLANNER_MODEL = new InjectionToken<PathPlannerModel>(
-  'PathPlannerModel'
+  'PathPlannerModel',
 );
 
 export type GraphScreen = 'original' | 'prim' | 'kruskal';
@@ -63,27 +63,51 @@ export class PathPlannerModel implements IObservable {
 
   public addLocation(
     location: Location,
-    adjacency: Array<number | null>
+    adjacency: Array<number | null>,
   ): void {
+    if (
+      location.getLatitude() < Config.minLat ||
+      location.getLatitude() > Config.maxLat ||
+      location.getLongitude() < Config.minLng ||
+      location.getLongitude() > Config.maxLng
+    )
+      throw new Error('Estación con coordenadas fuera de rango.');
+
     if (this.locationExists(location))
-      throw new Error('El marcador ya existe.');
+      throw new Error('La estación ya existe.');
 
     if (adjacency.length !== this.locations.length)
       throw new Error(
-        'Error inesperado. La lista de adyacencia no coincide con la cantidad de elementos.'
+        'La lista de adyacencia no coincide con la cantidad de estaciones actuales.',
       );
 
     const newLocationIndex = this.locations.length;
 
     this.locations[newLocationIndex] = location;
+
+    for (let i = 0; i < adjacency.length; i++) {
+      const weight = adjacency[i] ?? 0;
+      if (
+        typeof weight === 'number' &&
+        weight !== 0 &&
+        (weight < Config.minPathWeight || weight > Config.maxPathWeight)
+      )
+        throw new Error(
+          'La lista de adyacencia contiene pesos fuera de rango.',
+        );
+    }
+
     this.matrix[newLocationIndex] = new Array();
     this.matrix[newLocationIndex][newLocationIndex] = 0; // Diagonal cero
 
     for (let i = 0; i < adjacency.length; i++) {
-      const weight: number = adjacency[i] ?? 0;
+      const weight = adjacency[i] ?? 0;
       this.matrix[i]![newLocationIndex] = weight;
       this.matrix[newLocationIndex][i] = weight;
     }
+
+    this.primResult = null;
+    this.kruskalResult = null;
 
     this.notifyObservers();
   }
@@ -98,23 +122,37 @@ export class PathPlannerModel implements IObservable {
   }
 
   public resolveWithPrim(): void {
-    const start: number = performance.now();
-    const matrix: Array<Array<number>> = PrimAlgorithm(this.matrix);
-    const end: number = performance.now();
-    const elapsed: number = end - start;
-    this.primResult = new Result(matrix, elapsed, this.calcWeight(matrix));
-    this.screen = 'prim';
-    this.notifyObservers();
+    if (this.locations.length < 2)
+      throw new Error('No se cumple la cantidad de estaciones mínimas.');
+    try {
+      // performance es global
+      const start: number = performance.now();
+      const matrix: Array<Array<number>> = PrimAlgorithm(this.matrix);
+      const end: number = performance.now();
+      const elapsed: number = end - start;
+      this.primResult = new Result(matrix, elapsed, this.calcWeight(matrix));
+      this.screen = 'prim';
+      this.notifyObservers();
+    } catch (err) {
+      throw new Error('El grafo no es conexo.');
+    }
   }
 
   public resolveWithKruskal(): void {
-    const start: number = performance.now();
-    const matrix: Array<Array<number>> = KruskalAlgorithm(this.matrix);
-    const end: number = performance.now();
-    const elapsed: number = end - start;
-    this.kruskalResult = new Result(matrix, elapsed, this.calcWeight(matrix));
-    this.screen = 'kruskal';
-    this.notifyObservers();
+    if (this.locations.length < 2)
+      throw new Error('No se cumple la cantidad de estaciones mínimas.');
+    try {
+      // performance es global
+      const start: number = performance.now();
+      const matrix: Array<Array<number>> = KruskalAlgorithm(this.matrix);
+      const end: number = performance.now();
+      const elapsed: number = end - start;
+      this.kruskalResult = new Result(matrix, elapsed, this.calcWeight(matrix));
+      this.screen = 'kruskal';
+      this.notifyObservers();
+    } catch (err) {
+      throw new Error('El grafo no es conexo.');
+    }
   }
 
   private calcWeight(matrix: Array<Array<number>>): number {
@@ -137,8 +175,8 @@ export class PathPlannerModel implements IObservable {
       (untyped: any) =>
         new Location(
           untyped['title'],
-          new MapLib.LatLng(untyped['latLng']['lat'], untyped['latLng']['lng'])
-        )
+          new MapLib.LatLng(untyped['latLng']['lat'], untyped['latLng']['lng']),
+        ),
     );
     this.matrix = content['matrix'];
     this.notifyObservers();
@@ -164,7 +202,7 @@ export class PathPlannerModel implements IObservable {
         item['latLng']['lat'] > Config.maxLat
       )
         throw new Error(
-          `Validation failed: location[${i}].latLng.lat type error.`
+          `Validation failed: location[${i}].latLng.lat type error.`,
         );
       if (
         typeof item['latLng']['lng'] !== 'number' ||
@@ -172,7 +210,7 @@ export class PathPlannerModel implements IObservable {
         item['latLng']['lng'] > Config.maxLng
       )
         throw new Error(
-          `Validation failed: location[${i}].latLng.lng type error.`
+          `Validation failed: location[${i}].latLng.lng type error.`,
         );
     }
 
@@ -185,7 +223,7 @@ export class PathPlannerModel implements IObservable {
 
     if (content['matrix'].length !== content['locations'].length)
       throw new Error(
-        'Validation failed: matrix length is distinct to locations.'
+        'Validation failed: matrix length is distinct to locations.',
       );
 
     for (let r = 0; r < content['matrix'].length; r++) {
@@ -207,11 +245,7 @@ export class PathPlannerModel implements IObservable {
   }
 
   public export(): string {
-    return JSON.stringify(
-      { locations: this.locations, matrix: this.matrix },
-      null,
-      2
-    );
+    return JSON.stringify({ locations: this.locations, matrix: this.matrix });
   }
 
   public addObserver(observer: IObserver): void {
@@ -222,7 +256,7 @@ export class PathPlannerModel implements IObservable {
 
   public removeObserver(observer: IObserver): void {
     this.observers = this.observers.filter(
-      (current: IObserver) => current !== observer
+      (current: IObserver) => current !== observer,
     );
     this.debug(`Observer ${observer.constructor.name} removido.`);
   }
@@ -236,9 +270,5 @@ export class PathPlannerModel implements IObservable {
 
   private debug(...message: string[]): void {
     console.debug(`[${this.constructor.name}]`, ...message);
-  }
-
-  public multiplicar(a: number, b: number): number {
-    return a * b;
   }
 }
