@@ -40,3 +40,9 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+/d.sh
+/deploy.sh
+/dockerfile
+/nginx.conf
+/deploy
